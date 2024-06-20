@@ -15,7 +15,7 @@
                          - Add simpler, basic high-level methods
    01/10/2023 - Andy4495 - Fix #9 (send NACK after reading byte from device)
    01/15/2023 - Andy4495 - Fix #10 (check ack after writing byte to device)
-   06/20/2024 - H3 - Use fast read/write and internal pullups
+   06/20/2024 - H3 - Use internal pullups
 */
 
 #include "SWI2C.h"
@@ -24,15 +24,9 @@
 #define SWI2C_INPUT_MODE INPUT_PULLUP
 #endif
 
-#ifdef MEGATINYCORE
-#define SWI2C_READ digitalReadFast
-#define SWI2C_WRITE digitalWriteFast
-#define SWI2C_MODE pinModeFast
-#else
 #define SWI2C_READ digitalRead
 #define SWI2C_WRITE digitalWrite
 #define SWI2C_MODE pinMode
-#endif
 
 SWI2C::SWI2C(uint8_t sda_pin, uint8_t scl_pin, uint8_t deviceID) {
   _sda_pin = sda_pin;
