@@ -15,7 +15,7 @@
                          - Add simpler, basic high-level methods
    01/10/2023 - Andy4495 - Fix #9 (send NACK after reading byte from device)
    01/15/2023 - Andy4495 - Fix #10 (check ack after writing byte to device)
-   06/20/2024 - H3 - Use internal pullups
+   06/20/2024 - H3 - Use internal pullups, add clock select
 */
 
 #include "SWI2C.h"
@@ -27,6 +27,12 @@
 #define SWI2C_READ digitalRead
 #define SWI2C_WRITE digitalWrite
 #define SWI2C_MODE pinMode
+
+#ifdef SWI2C_CLOCK
+constexpr uint16_t SWI2C_DELAY_US = 1E6 / SWI2C_CLOCK;
+#else
+#define SWI2C_DELAY_US 0
+#endif
 
 SWI2C::SWI2C(uint8_t sda_pin, uint8_t scl_pin, uint8_t deviceID) {
   _sda_pin = sda_pin;
@@ -306,6 +312,7 @@ void SWI2C::sclHi() {
 
  // I2C pull-up resistor pulls SCL high in SWI2C_INPUT_MODE (Hi-Z) mode
   SWI2C_MODE(_scl_pin, SWI2C_INPUT_MODE);
+  delayMicroseconds(SWI2C_DELAY_US);
 
   // Check to make sure SCL pin has actually gone high before returning
   // Device may be pulling SCL low to delay transfer (clock stretching)
@@ -327,6 +334,7 @@ void SWI2C::sclHi() {
 
 void SWI2C::sclLo() {
   SWI2C_MODE(_scl_pin, OUTPUT);  // _scl_pin set LOW in constructor
+  delayMicroseconds(SWI2C_DELAY_US);
 }
 
 void SWI2C::sdaHi() {
