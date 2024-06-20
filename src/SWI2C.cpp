@@ -15,9 +15,24 @@
                          - Add simpler, basic high-level methods
    01/10/2023 - Andy4495 - Fix #9 (send NACK after reading byte from device)
    01/15/2023 - Andy4495 - Fix #10 (check ack after writing byte to device)
+   06/20/2024 - H3 - Use fast read/write and internal pullups
 */
 
 #include "SWI2C.h"
+
+#ifndef SWI2C_INPUT_MODE
+#define SWI2C_INPUT_MODE INPUT_PULLUP
+#endif
+
+#ifdef MEGATINYCORE
+#define SWI2C_READ digitalReadFast
+#define SWI2C_WRITE digitalWriteFast
+#define SWI2C_MODE pinModeFast
+#else
+#define SWI2C_READ digitalRead
+#define SWI2C_WRITE digitalWrite
+#define SWI2C_MODE pinMode
+#endif
 
 SWI2C::SWI2C(uint8_t sda_pin, uint8_t scl_pin, uint8_t deviceID) {
   _sda_pin = sda_pin;
@@ -28,12 +43,12 @@ SWI2C::SWI2C(uint8_t sda_pin, uint8_t scl_pin, uint8_t deviceID) {
 }
 
 void SWI2C::begin() {
-  // Set I2C pins low in setup. With pinMode(OUTPUT), line goes low
-  //   With pinMode(INPUT), then pull-up resistor pulls line high
-  digitalWrite(_scl_pin, LOW);
-  digitalWrite(_sda_pin, LOW);
-  pinMode(_scl_pin, INPUT);
-  pinMode(_sda_pin, INPUT);
+  // Set I2C pins low in setup. With SWI2C_MODE(OUTPUT), line goes low
+  //   With SWI2C_MODE(SWI2C_INPUT_MODE), then pull-up resistor pulls line high
+  SWI2C_WRITE(_scl_pin, LOW);
+  SWI2C_WRITE(_sda_pin, LOW);
+  SWI2C_MODE(_scl_pin, SWI2C_INPUT_MODE);
+  SWI2C_MODE(_sda_pin, SWI2C_INPUT_MODE);
 }
 
 // Basic high level methods
@@ -295,21 +310,21 @@ int SWI2C::readBytesFromDevice(uint8_t* buffer, uint8_t count, bool sendStopBit)
 void SWI2C::sclHi() {
   unsigned long startTimer;
 
- // I2C pull-up resistor pulls SCL high in INPUT (Hi-Z) mode
-  pinMode(_scl_pin, INPUT);
+ // I2C pull-up resistor pulls SCL high in SWI2C_INPUT_MODE (Hi-Z) mode
+  SWI2C_MODE(_scl_pin, SWI2C_INPUT_MODE);
 
   // Check to make sure SCL pin has actually gone high before returning
   // Device may be pulling SCL low to delay transfer (clock stretching)
 
   if ( _stretch_timeout_delay == 0) { // If timeout delay == 0, then wait indefinitely for SCL to go high
-    while (digitalRead(_scl_pin) == LOW) ;  // Empty statement: keep looping until not LOW
+    while (SWI2C_READ(_scl_pin) == LOW) ;  // Empty statement: keep looping until not LOW
   }
   else {
     // If SCL is not pulled high within a timeout period, then return anyway
     // to avoid locking up the processor.
     startTimer = millis();
     while (millis() - startTimer < _stretch_timeout_delay) {
-      if (digitalRead(_scl_pin) == HIGH) return; // SCL high before timeout, return without error
+      if (SWI2C_READ(_scl_pin) == HIGH) return; // SCL high before timeout, return without error
     }
     // SCL did not go high within the timeout, so set error and return anyway.
     _stretch_timeout_error = 1;
@@ -317,15 +332,15 @@ void SWI2C::sclHi() {
 }
 
 void SWI2C::sclLo() {
-  pinMode(_scl_pin, OUTPUT);  // _scl_pin set LOW in constructor
+  SWI2C_MODE(_scl_pin, OUTPUT);  // _scl_pin set LOW in constructor
 }
 
 void SWI2C::sdaHi() {
-  pinMode(_sda_pin, INPUT);  // I2C pull-up resistor pulls signal high
+  SWI2C_MODE(_sda_pin, SWI2C_INPUT_MODE);  // I2C pull-up resistor pulls signal high
 }
 
 void SWI2C::sdaLo() {
-  pinMode(_sda_pin, OUTPUT); // _sda_pin set LOW in constructor
+  SWI2C_MODE(_sda_pin, OUTPUT); // _sda_pin set LOW in constructor
 }
 
 void SWI2C::startBit() {  // Assume SDA already HIGH
@@ -374,7 +389,7 @@ uint8_t SWI2C::checkAckBit() { // Can also be used by controller to send NACK af
   uint8_t ack;
   sdaHi();    // Release data line. This will cause a NACK from controller when reading bytes.
   sclHi();
-  ack = digitalRead(_sda_pin);
+  ack = SWI2C_READ(_sda_pin);
   sclLo();
   return ack;
 }
@@ -399,28 +414,28 @@ void SWI2C::stopBit() {  // Assume SCK is already LOW (from ack or data write)
 uint8_t SWI2C::read1Byte() {
   uint8_t value = 0;
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x80;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x80;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x40;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x40;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x20;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x20;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x10;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x10;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x08;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x08;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x04;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x04;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x02;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x02;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x01;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x01;
   sclLo();
 
   return value;
@@ -430,53 +445,53 @@ uint16_t SWI2C::read2Byte() {
   // Assumes LEAST significant BYTE is transferred first
   uint16_t value = 0;
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x80;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x80;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x40;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x40;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x20;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x20;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x10;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x10;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x08;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x08;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x04;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x04;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x02;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x02;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x01;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x01;
   sclLo();
   writeAck();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x8000;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x8000;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x4000;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x4000;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x2000;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x2000;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x1000;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x1000;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x0800;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x0800;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x0400;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x0400;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x0200;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x0200;
   sclLo();
   sclHi();
-  if (digitalRead(_sda_pin) == 1) value += 0x0100;
+  if (SWI2C_READ(_sda_pin) == 1) value += 0x0100;
   sclLo();
   return value;
 }
