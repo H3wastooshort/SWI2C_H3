@@ -29,7 +29,7 @@
 #define SWI2C_MODE pinMode
 
 #ifdef SWI2C_CLOCK
-constexpr uint16_t SWI2C_DELAY_US = 1E6 / SWI2C_CLOCK;
+constexpr uint16_t SWI2C_DELAY_US = (1E6 / SWI2C_CLOCK) / 2;
 #else
 #define SWI2C_DELAY_US 0
 #endif
@@ -309,8 +309,9 @@ int SWI2C::readBytesFromDevice(uint8_t* buffer, uint8_t count, bool sendStopBit)
 
 void SWI2C::sclHi() {
   unsigned long startTimer;
-
+  
  // I2C pull-up resistor pulls SCL high in SWI2C_INPUT_MODE (Hi-Z) mode
+  delayMicroseconds(SWI2C_DELAY_US);
   SWI2C_MODE(_scl_pin, SWI2C_INPUT_MODE);
   delayMicroseconds(SWI2C_DELAY_US);
 
@@ -333,6 +334,7 @@ void SWI2C::sclHi() {
 }
 
 void SWI2C::sclLo() {
+  delayMicroseconds(SWI2C_DELAY_US);
   SWI2C_MODE(_scl_pin, OUTPUT);  // _scl_pin set LOW in constructor
   SWI2C_WRITE(_scl_pin, LOW);
   delayMicroseconds(SWI2C_DELAY_US);
