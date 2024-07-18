@@ -334,6 +334,7 @@ void SWI2C::sclHi() {
 
 void SWI2C::sclLo() {
   SWI2C_MODE(_scl_pin, OUTPUT);  // _scl_pin set LOW in constructor
+  SWI2C_WRITE(_scl_pin, LOW);
   delayMicroseconds(SWI2C_DELAY_US);
 }
 
@@ -343,6 +344,7 @@ void SWI2C::sdaHi() {
 
 void SWI2C::sdaLo() {
   SWI2C_MODE(_sda_pin, OUTPUT); // _sda_pin set LOW in constructor
+  SWI2C_WRITE(_scl_pin, LOW);
 }
 
 void SWI2C::startBit() {  // Assume SDA already HIGH
